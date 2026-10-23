@@ -1,10 +1,17 @@
-import { ChooserOptions } from "../components/ChooserOptions";
+import { useState } from "react";
+import { ChevronRight } from "lucide-react";
+import { AppIconPicker } from "../components/AppIconPicker";
 import { Card, Row, ScreenHeader } from "../components/ui";
 import { useSettings } from "../context/SettingsContext";
 import { canVibrate, feedback } from "../utils/feedback";
+import { APP_THEMES } from "../utils/themes";
+import { getAppIconDataUrl } from "../utils/appIcon";
 
 export function SettingsScreen() {
-  const { reset } = useSettings();
+  const { settings, reset } = useSettings();
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const selectedIcon =
+    APP_THEMES.find((theme) => theme.id === settings.appIcon) ?? APP_THEMES[0];
 
   return (
     <div className="scroll-y absolute inset-0">
@@ -19,9 +26,29 @@ export function SettingsScreen() {
         </div>
         <section>
           <h2 className="mb-2 px-1 text-[13px] font-semibold tracking-wider text-white/85 uppercase">
-            Chooser & audio
+            Appearance
           </h2>
-          <ChooserOptions />
+          <Card className="bg-white/85">
+            <button
+              type="button"
+              onClick={() => {
+                setIconPickerOpen(true);
+                feedback.tap();
+              }}
+              className="flex w-full items-center gap-4 px-5 py-4 text-left text-label"
+            >
+              <img
+                src={getAppIconDataUrl(selectedIcon.id)}
+                alt=""
+                className="h-11 w-11 rounded-xl shadow-sm"
+              />
+              <span className="flex-1 text-[17px] font-medium">App Icon</span>
+              <span className="text-[16px] text-label/55">
+                {selectedIcon.id === "liquid-cheese" ? "LiquidCheese" : selectedIcon.name}
+              </span>
+              <ChevronRight size={20} className="text-label/45" />
+            </button>
+          </Card>
         </section>
 
         <section>
@@ -80,6 +107,7 @@ export function SettingsScreen() {
 
         <p className="pb-2 text-center text-[13px] text-white/70">A random finger selector</p>
       </div>
+      {iconPickerOpen && <AppIconPicker onClose={() => setIconPickerOpen(false)} />}
     </div>
   );
 }
