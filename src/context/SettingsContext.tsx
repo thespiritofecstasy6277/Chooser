@@ -8,7 +8,13 @@ import {
   type ReactNode,
 } from "react";
 import { configureFeedback, isToneId, type ToneId } from "../utils/feedback";
-import { DEFAULT_THEME, FINGER_EMOJIS, isThemeId, RING_COLORS } from "../utils/themes";
+import {
+  APP_THEMES,
+  DEFAULT_THEME,
+  FINGER_EMOJIS,
+  isThemeId,
+  RING_COLORS,
+} from "../utils/themes";
 import { DARE_TOPICS, type DareTopic } from "../utils/darePrompts";
 
 export type ChooserMode = "all" | "teams" | "order";
@@ -34,6 +40,7 @@ export interface Settings {
   tapMode: boolean;
   cheatMode: boolean;
   notifications: boolean;
+  appIcon: string;
   theme: string;
   customThemeImage: string | null;
   ringColor: string;
@@ -57,6 +64,7 @@ export const DEFAULT_SETTINGS: Settings = {
   tapMode: false,
   cheatMode: false,
   notifications: false,
+  appIcon: "mountains",
   theme: DEFAULT_THEME,
   customThemeImage: null,
   ringColor: "#ffffff",
@@ -88,6 +96,11 @@ function load(): Settings {
           : DEFAULT_SETTINGS.winners,
       teams: parsed.teams === 3 || parsed.teams === 4 ? parsed.teams : 2,
       tone: isToneId(parsed.tone) ? parsed.tone : DEFAULT_SETTINGS.tone,
+      appIcon:
+        typeof parsed.appIcon === "string" &&
+        APP_THEMES.some((theme) => theme.id === parsed.appIcon)
+          ? parsed.appIcon
+          : DEFAULT_SETTINGS.appIcon,
       theme: isThemeId(parsed.theme) ? parsed.theme : DEFAULT_SETTINGS.theme,
       customThemeImage:
         typeof parsed.customThemeImage === "string" &&
