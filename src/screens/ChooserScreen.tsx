@@ -127,9 +127,11 @@ export function ChooserScreen() {
                   ? error.status
                   : undefined;
               setChallengeNotice(
-                activeSettings.adultPrompts && status === 404
-                  ? "No adult prompts uploaded yet — showing a built-in prompt."
-                  : "Prompt feed unavailable — showing a built-in prompt.",
+                status === 404
+                  ? "No saved prompts match this topic, type, and 18+ setting. Check your filters or add matching prompts."
+                  : error instanceof Error
+                    ? `${error.message} — showing a built-in prompt.`
+                    : "Prompt feed unavailable — showing a built-in prompt.",
               );
             }
           });
