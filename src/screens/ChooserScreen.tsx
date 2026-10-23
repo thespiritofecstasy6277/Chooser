@@ -1,4 +1,4 @@
-import { SlidersHorizontal } from "lucide-react";
+import { RefreshCw, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChooserOptions } from "../components/ChooserOptions";
 import { DareTopicDropdown } from "../components/DareTopicDropdown";
@@ -67,17 +67,25 @@ function getChallenge(settings: Settings): Challenge {
   return null;
 }
 
+function supportsPrompts(settings: Settings) {
+  return settings.mode !== "teams" && settings.mode !== "order" && !settings.homogeneousTeams;
+}
+
 export function ChooserScreen() {
   const { settings, update } = useSettings();
   const areaRef = useRef<HTMLDivElement>(null);
   const [result, setResult] = useState<ResultMap | null>(null);
+  const [resultFingers, setResultFingers] = useState<Finger[] | null>(null);
   const [challenge, setChallenge] = useState<string | null>(null);
   const [challengeNotice, setChallengeNotice] = useState<string | null>(null);
+  const [holdSeconds, setHoldSeconds] = useState(15);
   const [sheetOpen, setSheetOpen] = useState(false);
   const resultOrderRef = useRef(0);
   const challengeRequestRef = useRef(0);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+  const shouldHoldResults =
+    settings.mode === "teams" || settings.mode === "order" || settings.homogeneousTeams;
 
   const onFingerDown = useCallback(() => feedback.tap(), []);
   const { fingers, clear } = useFingers(areaRef, {
@@ -88,16 +96,20 @@ export function ChooserScreen() {
 
   const countdownMs = settings.countdown * 1000;
 
-  const { phase, roundId } = useFingerRound({
+  const { phase, roundId, reset: resetRound } = useFingerRound({
     fingers,
     countdownMs,
+    resetDelayMs: shouldHoldResults ? 15_000 : 400,
     onCountdownStart: () => feedback.countdown(countdownMs),
     onCountdownCancel: () => feedback.cancel(),
     onDone: (list) => {
       resultOrderRef.current = Math.max(0, ...list.map((f) => f.order));
       const activeSettings = settingsRef.current;
       setResult(computeResult(list, activeSettings));
-      const selectedChallenge = getChallenge(activeSettings);
+      setResultFingers(list);
+      const selectedChallenge = supportsPrompts(activeSettings)
+        ? getChallenge(activeSettings)
+        : null;
       setChallengeNotice(null);
       if (selectedChallenge) {
         const label = selectedChallenge.kind === "truth" ? "Truth" : "Dare";
@@ -150,10 +162,24 @@ export function ChooserScreen() {
     onReset: () => {
       challengeRequestRef.current += 1;
       setResult(null);
+      setResultFingers(null);
       setChallenge(null);
       setChallengeNotice(null);
     },
   });
+
+  useEffect(() => {
+    if (!shouldHoldResults || phase !== "result" || fingers.length > 0) {
+      setHoldSeconds(15);
+      return;
+    }
+    const expiresAt = Date.now() + 15_000;
+    const updateRemaining = () =>
+      setHoldSeconds(Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
+    updateRemaining();
+    const interval = window.setInterval(updateRemaining, 1000);
+    return () => window.clearInterval(interval);
+  }, [fingers.length, phase, roundId, shouldHoldResults]);
 
   // Desktop fallback: a click after a result clears the simulated fingers.
   useEffect(() => {
@@ -162,7 +188,9 @@ export function ChooserScreen() {
   }, [fingers, phase, clear]);
 
   const isResult = phase === "result" && result !== null;
-  const visibleFingers = isResult ? fingers.filter((f) => result[f.id]) : fingers;
+  const visibleFingers = isResult
+    ? (resultFingers ?? fingers).filter((f) => result[f.id])
+    : fingers;
   const winner = useMemo(
     () => (isResult ? visibleFingers.find((f) => result[f.id]?.status === "winner") : undefined),
     [isResult, visibleFingers, result],
@@ -258,7 +286,9 @@ export function ChooserScreen() {
               />
             </div>
           )}
-          {(settings.takeDare || settings.truthOrDare) && <DareTopicDropdown />}
+          {(settings.takeDare || settings.truthOrDare) && supportsPrompts(settings) && (
+            <DareTopicDropdown />
+          )}
         </div>
       </div>
 
@@ -292,7 +322,9 @@ export function ChooserScreen() {
         />
       ))}
 
-      {isResult && challenge && (
+      {isResult &&
+        challenge &&
+        supportsPrompts(settings) && (
         <div className="pointer-events-none absolute inset-x-5 bottom-[76px] z-20 flex justify-center">
           <div className="anim-fade-up rounded-2xl bg-black/25 px-5 py-3 text-center text-[16px] font-semibold text-white backdrop-blur-sm">
             {challenge}
@@ -308,7 +340,28 @@ export function ChooserScreen() {
 
       {/* Bottom hint */}
       <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex justify-center px-6">
-        {isResult && settings.tapMode ? (
+        {isResult && shouldHoldResults ? (
+          <div className="pointer-events-auto flex items-center gap-3 rounded-full bg-black/25 px-4 py-2 text-[15px] font-semibold text-white backdrop-blur-sm">
+            <span>
+              {fingers.length === 0
+                ? `Results clear in ${holdSeconds}s`
+                : "Tap refresh for a new round"}
+            </span>
+            <button
+              type="button"
+              data-ui
+              aria-label="Refresh results and start a new round"
+              title="Start a new round"
+              onClick={() => {
+                clear();
+                resetRound();
+              }}
+              className="rounded-full p-2 transition hover:bg-white/15 active:scale-90"
+            >
+              <RefreshCw size={20} />
+            </button>
+          </div>
+        ) : isResult && settings.tapMode ? (
           <button
             type="button"
             data-ui
