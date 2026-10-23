@@ -234,7 +234,7 @@ export async function handleRequest(request, response) {
       typeof input !== "object" ||
       input === null ||
       !TOPICS.includes(input.topic) ||
-      (input.kind !== "truth" && input.kind !== "dare") ||
+      (input.kind !== "truth" && input.kind !== "dare" && input.kind !== "all") ||
       typeof input.adult !== "boolean"
     ) {
       sendJson(response, 400, { error: "A valid topic, kind, and adult flag are required." }, origin);
@@ -245,8 +245,8 @@ export async function handleRequest(request, response) {
         .from("prompts")
         .select("id, topic, kind, adult, prompt")
         .eq("enabled", true)
-        .eq("adult", input.adult)
-        .eq("kind", input.kind);
+        .eq("adult", input.adult);
+      if (input.kind !== "all") query = query.eq("kind", input.kind);
       query =
         input.topic === "All"
           ? query
@@ -261,7 +261,8 @@ export async function handleRequest(request, response) {
       sendJson(response, 404, { error: "No matching prompts have been added to the feed yet." }, origin);
       return;
     }
-    sendJson(response, 200, { prompt: data[Math.floor(Math.random() * data.length)].prompt }, origin);
+    const selectedPrompt = data[Math.floor(Math.random() * data.length)];
+    sendJson(response, 200, { kind: selectedPrompt.kind, prompt: selectedPrompt.prompt }, origin);
     return;
   }
 
