@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TabBar, type Tab } from "./components/TabBar";
 import { SettingsProvider, useSettings } from "./context/SettingsContext";
 import { ChooserScreen } from "./screens/ChooserScreen";
@@ -7,11 +7,15 @@ import { RouletteScreen } from "./screens/RouletteScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { AdminScreen } from "./screens/AdminScreen";
 import { APP_THEMES } from "./utils/themes";
+import { applyAppIcon } from "./utils/appIcon";
 
 function AppContent() {
   const { settings } = useSettings();
   const [tab, setTab] = useState<Tab>("chooser");
   const [gameOpen, setGameOpen] = useState(false);
+  useEffect(() => {
+    applyAppIcon(settings.appIcon);
+  }, [settings.appIcon]);
   const theme = APP_THEMES.find((item) => item.id === settings.theme) ?? APP_THEMES[0];
   const background =
     settings.theme === "custom" && settings.customThemeImage
