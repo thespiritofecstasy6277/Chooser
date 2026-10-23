@@ -1,10 +1,13 @@
 import type { DareTopic } from "./darePrompts";
 
+export type PromptKind = "truth" | "dare";
+export type PromptSelection = { kind: PromptKind; prompt: string };
+
 export async function requestPrompt(
   topic: DareTopic,
-  kind: "truth" | "dare",
+  kind: PromptKind | "all",
   adult: boolean,
-): Promise<string> {
+): Promise<PromptSelection> {
   const response = await fetch("/api/prompts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -35,10 +38,12 @@ export async function requestPrompt(
     !("prompt" in payload) ||
     typeof payload.prompt !== "string" ||
     !payload.prompt.trim() ||
-    payload.prompt.length > 500
+    payload.prompt.length > 500 ||
+    !("kind" in payload) ||
+    (payload.kind !== "truth" && payload.kind !== "dare")
   ) {
     throw new Error("The prompt feed returned an invalid prompt.");
   }
 
-  return payload.prompt.trim();
+  return { kind: payload.kind, prompt: payload.prompt.trim() };
 }
