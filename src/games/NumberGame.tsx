@@ -1,8 +1,44 @@
 import { useEffect, useRef, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { Card, PrimaryButton, Row, ScreenHeader, Segmented, Toggle } from "../components/ui";
 import { cn } from "../utils/cn";
 import { feedback } from "../utils/feedback";
 import { randomInt, shuffle } from "../utils/random";
+
+type NumberHistoryEntry = {
+  sequence: number;
+  numbers: number[];
+  generatedAt: number;
+};
+
+const HISTORY_STORAGE_KEY = "chooser.number-history.v1";
+
+function loadNumberHistory(): NumberHistoryEntry[] {
+  try {
+    const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (!saved) return [];
+    const parsed: unknown = JSON.parse(saved);
+    if (!Array.isArray(parsed)) {
+      throw new Error("Saved number history is not a list.");
+    }
+    return parsed.filter(
+      (entry): entry is NumberHistoryEntry =>
+        typeof entry === "object" &&
+        entry !== null &&
+        "sequence" in entry &&
+        Number.isInteger(entry.sequence) &&
+        entry.sequence > 0 &&
+        "numbers" in entry &&
+        Array.isArray(entry.numbers) &&
+        entry.numbers.every(Number.isSafeInteger) &&
+        "generatedAt" in entry &&
+        Number.isFinite(entry.generatedAt),
+    );
+  } catch (error) {
+    console.error("Unable to load saved number history.", error);
+    return [];
+  }
+}
 
 function NumberField({
   label,
@@ -42,11 +78,20 @@ export function NumberGame({ onBack }: { onBack: () => void }) {
   const [count, setCount] = useState(1);
   const [unique, setUnique] = useState(true);
   const [results, setResults] = useState<number[]>([]);
+  const [history, setHistory] = useState<NumberHistoryEntry[]>(loadNumberHistory);
   const [rolling, setRolling] = useState(false);
   const [tick, setTick] = useState(0);
   const timers = useRef<number[]>([]);
 
   useEffect(() => () => timers.current.forEach((t) => window.clearTimeout(t)), []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+    } catch (error) {
+      console.error("Unable to save number history.", error);
+    }
+  }, [history]);
 
   const lo = Math.min(min, max);
   const hi = Math.max(min, max);
@@ -84,7 +129,16 @@ export function NumberGame({ onBack }: { onBack: () => void }) {
     }
     timers.current.push(
       window.setTimeout(() => {
-        setResults(finalNumbers());
+        const generatedNumbers = finalNumbers();
+        setResults(generatedNumbers);
+        setHistory((current) => [
+          {
+            sequence: Math.max(0, ...current.map((entry) => entry.sequence)) + 1,
+            numbers: generatedNumbers,
+            generatedAt: Date.now(),
+          },
+          ...current,
+        ]);
         setTick((t) => t + 1);
         setRolling(false);
         feedback.thud();
@@ -159,6 +213,50 @@ export function NumberGame({ onBack }: { onBack: () => void }) {
             {rolling ? "Generating…" : "Generate"}
           </PrimaryButton>
         </div>
+
+        <Card className="px-5 py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-white">Number history</h2>
+              <p className="text-xs text-white/70">Saved on this device</p>
+            </div>
+            <button
+              type="button"
+              disabled={history.length === 0}
+              onClick={() => setHistory([])}
+              className="flex items-center gap-1.5 rounded-xl bg-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/30 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <Trash2 size={16} />
+              Clear
+            </button>
+          </div>
+          {history.length === 0 ? (
+            <p className="mt-4 text-sm text-white/70">Generated numbers will appear here.</p>
+          ) : (
+            <ol className="mt-3 divide-y divide-white/15">
+              {history.map((entry) => (
+                <li
+                  key={entry.sequence}
+                  className="flex items-center justify-between gap-3 py-3 text-sm text-white"
+                >
+                  <span className="shrink-0 font-bold text-white/70">#{entry.sequence}</span>
+                  <span className="min-w-0 flex-1 text-right font-semibold">
+                    {entry.numbers.join(", ")}
+                  </span>
+                  <time
+                    className="shrink-0 text-xs text-white/60"
+                    dateTime={new Date(entry.generatedAt).toISOString()}
+                  >
+                    {new Date(entry.generatedAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </time>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Card>
       </div>
     </div>
   );
