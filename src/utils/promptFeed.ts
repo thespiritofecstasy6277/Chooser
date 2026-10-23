@@ -35,7 +35,7 @@ export async function requestPrompt(
     !("prompt" in payload) ||
     typeof payload.prompt !== "string" ||
     !payload.prompt.trim() ||
-    payload.prompt.length > 240
+    payload.prompt.length > 500
   ) {
     throw new Error("The prompt feed returned an invalid prompt.");
   }
