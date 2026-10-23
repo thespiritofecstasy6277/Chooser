@@ -20,7 +20,7 @@ async function readError(response: Response) {
     "error" in payload &&
     typeof payload.error === "string"
     ? payload.error
-    : "The prompt API returned an unexpected error.";
+    : `Prompt API returned HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ""}. Check the deployed Vercel API route.`;
 }
 
 export function AdminScreen() {
@@ -224,8 +224,9 @@ export function AdminScreen() {
           <section className="rounded-2xl bg-white p-5 text-[#25151b]">
             <h2 className="text-lg font-bold">Supabase is not configured</h2>
             <p className="mt-2 text-sm leading-relaxed">
-              Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to
-              your local <code>.env</code> file, then restart the development server.
+              Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in
+              Vercel under <strong>Project → Settings → Environment Variables</strong>, then
+              redeploy. For local development, put them in <code>.env</code> and restart Vite.
             </p>
           </section>
         ) : !session ? (
