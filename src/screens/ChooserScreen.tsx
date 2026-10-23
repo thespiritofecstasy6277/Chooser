@@ -107,11 +107,16 @@ export function ChooserScreen() {
         setChallenge(`${label}: Loading prompt…`);
         void requestPrompt(
           activeSettings.dareTopic,
-          selectedChallenge.kind,
+          activeSettings.truthOrDare && activeSettings.dareTopic === "All"
+            ? "all"
+            : selectedChallenge.kind,
           activeSettings.adultPrompts,
         )
-          .then((prompt) => {
-            if (challengeRequestRef.current === requestId) setChallenge(`${label}: ${prompt}`);
+          .then((selection) => {
+            if (challengeRequestRef.current === requestId) {
+              const promptLabel = selection.kind === "truth" ? "Truth" : "Dare";
+              setChallenge(`${promptLabel}: ${selection.prompt}`);
+            }
           })
           .catch((error: unknown) => {
             console.error("Unable to load a shared prompt; using an offline prompt.", error);
