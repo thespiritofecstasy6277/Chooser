@@ -105,8 +105,26 @@ function isRateLimited(address, limit = RATE_LIMIT) {
   return false;
 }
 
-function isAllowedOrigin(origin) {
-  return !origin || allowedOrigins.has(origin);
+function isSameOriginRequest(request, origin) {
+  if (!origin || !request.headers.host) return false;
+  try {
+    const originUrl = new URL(origin);
+    const forwardedProto = request.headers["x-forwarded-proto"]
+      ?.split(",")[0]
+      .trim()
+      .toLowerCase();
+    return (
+      originUrl.host.toLowerCase() === request.headers.host.toLowerCase() &&
+      forwardedProto !== undefined &&
+      originUrl.protocol === `${forwardedProto}:`
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedOrigin(origin, request) {
+  return !origin || allowedOrigins.has(origin) || isSameOriginRequest(request, origin);
 }
 
 function validatePrompt(input, partial = false, current = {}) {
@@ -182,7 +200,7 @@ export async function handleRequest(request, response) {
     /^\/api\/admin\/prompts\/[0-9a-f-]{36}$/i.test(url.pathname);
 
   if (request.method === "OPTIONS") {
-    if (!origin || !allowedOrigins.has(origin)) {
+    if (!origin || !isAllowedOrigin(origin, request)) {
       sendJson(response, 403, { error: "This origin is not allowed." });
       return;
     }
@@ -197,7 +215,7 @@ export async function handleRequest(request, response) {
     return;
   }
 
-  if (!isAllowedOrigin(origin)) {
+  if (!isAllowedOrigin(origin, request)) {
     sendJson(response, 403, { error: "This origin is not allowed." }, origin);
     return;
   }
